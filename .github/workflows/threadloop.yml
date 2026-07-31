@@ -1,0 +1,63 @@
+name: ThreadLoop pilot evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence:
+        description: Signed evidence package to produce
+        required: true
+        type: choice
+        options:
+          - gate
+          - review
+      session_id:
+        description: Exact ThreadLoop session id
+        required: true
+        type: string
+      plan_sha256:
+        description: Canonical ThreadLoop proof-plan digest (proofPlan contract version 3)
+        required: true
+        type: string
+      gate_id:
+        description: Declared gate id for gate evidence
+        required: false
+        default: make-verify
+        type: string
+      gate_json:
+        description: Canonical declared gate JSON for gate evidence
+        required: false
+        default: '{"command":["make","verify"],"id":"make-verify","timeout_ms":900000,"working_directory":"."}'
+        type: string
+      pull_request_number:
+        description: Pull request number for review evidence
+        required: false
+        default: 0
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    if: ${{ inputs.evidence == 'gate' }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: nnennandukwe/threadloop/.github/workflows/threadloop-gate-sensor.yml@6a59de94a354a4b0584e34cf98bfe5f4fc38a15f
+    with:
+      session_id: ${{ inputs.session_id }}
+      plan_sha256: ${{ inputs.plan_sha256 }}
+      gate_id: ${{ inputs.gate_id }}
+      gate_json: ${{ inputs.gate_json }}
+
+  review:
+    if: ${{ inputs.evidence == 'review' }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+    uses: nnennandukwe/threadloop/.github/workflows/threadloop-review-sensor.yml@6a59de94a354a4b0584e34cf98bfe5f4fc38a15f
+    with:
+      session_id: ${{ inputs.session_id }}
+      plan_sha256: ${{ inputs.plan_sha256 }}
+      pull_request_number: ${{ inputs.pull_request_number }}
