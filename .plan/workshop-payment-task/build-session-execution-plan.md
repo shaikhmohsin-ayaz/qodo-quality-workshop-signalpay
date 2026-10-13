@@ -1,53 +1,49 @@
-# Workshop Payment Workflow Build-Session Plan
+# Workshop Payment Workflow Build-Session Plan: Refund
 
 ## Summary
-Use one short build session to implement a payment workflow change under quality gates.
+One short build session to add the refund endpoint under the repo quality gates.
 
 ## Implementation Skill Handoff
 - Planning skill completed: `workshop-plan-from-task`
 - First implementation skill to run: `workshop-tdd-bdd`
 - Required implementation prompt:
   ```text
-  Use the workshop TDD/BDD skill and the plan files just created.
+  Use the workshop TDD/BDD skill.
+
+  Use the plan files just created.
   Write the smallest failing tests first for the selected payment workflow path.
   Cover one happy path and at least one failure path.
   Do not implement production code until the failing tests prove the behavior gap.
   ```
-- Conditional skills to keep active during implementation:
-  - `payment-idempotency` for idempotency keys, auth scope checks, event contract shape, and retry behavior.
-  - `workshop-failure-path-testing` for missing-key, missing-scope, unknown-payment, and duplicate-event gates.
+- Conditional skills kept active:
+  - `payment-idempotency` for key, scope-before-mutation, event shape, retry behavior.
+  - `workshop-failure-path-testing` for missing-key, missing-scope, unknown-payment, invalid-state, duplicate-event gates.
 - Review/remediation skills:
   - `workshop-guidelines-audit` before committing or opening the PR.
-  - optional `workshop-pythonic-review` for changed Python code.
-  - optional `qodo-pr-resolver` only after Qodo posts PR findings.
+  - optional `workshop-pythonic-review` for changed Python.
+  - optional `qodo-review-resolver` after Qodo posts findings.
 
 ## Execution Steps
-1. Run `make doctor`.
-2. Run `make verify` on the clean starter.
-3. Read `AGENTS.md` and `rules/README.md`.
-4. Select the relevant `PAY-*` repo-local rule IDs.
-5. Optionally compare with Qodo rules if available.
-6. Choose implementation skills and fill in the Implementation Skill Handoff.
-7. Run the `workshop-tdd-bdd` prompt from the handoff.
-8. Write failing tests for the new behavior.
-9. Implement the smallest code change.
-10. Run targeted tests.
-11. Run `make verify`.
-12. Run `workshop-guidelines-audit`.
-13. Commit with a Conventional Commit.
-14. Push and open a PR.
-15. Inspect Qodo findings.
-16. Run PR Resolver or manually fix findings.
+1. `make doctor` and `make verify` on the clean starter (baseline: 13 tests pass).
+2. Re-read `AGENTS.md` and `rules/README.md`; selected rules are in `plan.md`.
+3. Optional Qodo rules comparison: skipped (Qodo CLI not installed).
+4. Run the `workshop-tdd-bdd` prompt above.
+5. Add failing tests for scenarios 1-9 to `tests/test_payments_api.py`; confirm they fail because the endpoint is missing (404/405), not because of an import error.
+6. Implement the minimal handler in `src/signalpay_api/app.py`, in this order: `require_principal(required_scope="payments:refund")`, key check, 404, idempotency lookup, status check (409), mutate, `build_payment_event`, cache a deepcopy.
+7. Run the targeted tests, then `make verify`.
+8. Run `workshop-guidelines-audit`.
+9. Commit with Conventional Commits and the Copilot co-author trailer.
+10. Push, open a PR, inspect Qodo findings, fix them, re-run `make verify`.
 
 ## Test Plan
-- Add one success-path test.
-- Add one idempotency retry test.
-- Add one missing-key or missing-scope failure test.
-- Keep existing capture tests passing.
+- Success: one `payment.refunded` event, camelCase body, status `refunded`.
+- Retry: same key returns the same body, no new event.
+- Failure: missing key (400), wrong scope (403), no token (401), unknown payment (404), non-captured (409), double refund with a new key (409).
+- Capture tests keep passing; capture and refund results do not collide.
 
 ## Risk Checks
-- No state mutation before auth and idempotency checks.
-- No duplicate event for a retried idempotency key.
+- No state mutation before auth, key and state checks.
+- No duplicate event for a retried key.
 - No changed event field names.
 - No committed secrets.
 
